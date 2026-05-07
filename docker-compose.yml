@@ -1,0 +1,42 @@
+version: "3.9"
+
+# ── ActBoard — Docker Compose ──────────────────────────────────────────────────
+#
+#   Quick-start (SQLite, single container):
+#     docker compose up -d
+#
+#   Seed demo data after first start:
+#     docker compose exec actboard node scripts/seed.js
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  actboard:
+    # Build from the repo root so the Dockerfile can COPY server/ correctly
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: actboard/server:latest
+    container_name: actboard
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3141}:3141"
+    volumes:
+      # SQLite database persists here across restarts / upgrades
+      - actboard_data:/app/data
+    environment:
+      PORT: "3141"
+      HOST: "0.0.0.0"
+      NODE_ENV: "production"
+      # Uncomment to restrict CORS in production:
+      # CORS_ORIGIN: "https://actboard.yourcompany.com"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3141/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  actboard_data:
+    driver: local

@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+server/data/
+*.db
+*.db-shm
+*.db-wal
+
+# Internal planning docs — not for public repo
+ACTBOARD_PRODUCT_PLAN.md
+
+# Legacy demo folder — replaced by examples/
+DemoTestUse/
+
+# Reporter — compiled output (run `npm run build` from reporter/ after cloning)
+reporter/dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/settings.json
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Docker
+.dockerignore
+
+# Publish / push scripts (contain credentials — never commit)
+publish.sh
+publish-docker.sh
+push-github.sh
+.npmrc
+
+# Examples — generated artifacts
+examples/.env
+examples/test-results/
+examples/playwright-report/
+examples/package-lock.json

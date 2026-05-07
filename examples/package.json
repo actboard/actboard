@@ -1,0 +1,14 @@
+{
+  "name": "actboard-example",
+  "version": "1.0.0",
+  "description": "Example Playwright project using @actboard/playwright-reporter",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui"
+  },
+  "devDependencies": {
+    "@actboard/playwright-reporter": "^1.0.0",
+    "@playwright/test": "^1.44.0"
+  }
+}

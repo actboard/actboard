@@ -1,0 +1,57 @@
+{
+  "name": "actboard-server",
+  "version": "1.0.0",
+  "description": "ActBoard — self-hostable Playwright test dashboard server",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "actboard-server": "./cli.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "seed": "node scripts/seed.js",
+    "cli": "node cli.js"
+  },
+  "files": [
+    "index.js",
+    "cli.js",
+    "db.js",
+    "routes/",
+    "middleware/",
+    "scripts/",
+    "public/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "playwright",
+    "testing",
+    "dashboard",
+    "test-reporter",
+    "e2e",
+    "actboard",
+    "self-hosted"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/actboard/actboard.git",
+    "directory": "server"
+  },
+  "homepage": "https://actboard.dev",
+  "bugs": {
+    "url": "https://github.com/actboard/actboard/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.9.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.3",
+    "nanoid": "^5.0.7"
+  }
+}

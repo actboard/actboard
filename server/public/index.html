@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ActBoard — Playwright Test Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ── Reset & Base ─────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Instrument Sans',system-ui,sans-serif}
+
+/* ── Design Tokens ────────────────────────────────── */
+:root{
+  --bg-base:#0b0b10;--bg-surface:#111118;--bg-elevated:#191923;
+  --bg-hover:#20202e;--bg-active:#28283a;
+  --border:rgba(255,255,255,0.07);--border-strong:rgba(255,255,255,0.13);
+  --accent:#7c3aed;--accent-dim:rgba(124,58,237,0.15);
+  --accent-light:#a78bfa;--accent-glow:rgba(124,58,237,0.35);
+  --green:#22c55e;--green-dim:rgba(34,197,94,0.12);
+  --red:#ef4444;--red-dim:rgba(239,68,68,0.12);
+  --yellow:#f59e0b;--yellow-dim:rgba(245,158,11,0.12);
+  --blue:#3b82f6;--blue-dim:rgba(59,130,246,0.12);
+  --text-primary:#eeeef5;--text-secondary:#8888aa;--text-muted:#50507a;--text-code:#c4b5fd;
+  --sidebar-w:220px;--topbar-h:56px;--radius:8px;--radius-lg:12px;
+  --font-mono:'DM Mono','Fira Code',monospace;
+}
+
+/* ── Scrollbar ────────────────────────────────────── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bg-active);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--border-strong)}
+
+/* ── Shell ────────────────────────────────────────── */
+.shell{display:flex;height:100vh;background:var(--bg-base);color:var(--text-primary);overflow:hidden}
+
+/* ── Sidebar ──────────────────────────────────────── */
+.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--bg-surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;z-index:10}
+.sidebar-logo{height:var(--topbar-h);display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.logo-icon{width:28px;height:28px;background:linear-gradient(135deg,var(--accent),#4f46e5);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;font-family:var(--font-mono);box-shadow:0 0 16px var(--accent-glow);flex-shrink:0}
+.logo-text{font-weight:700;font-size:15px;letter-spacing:-0.3px}
+.logo-text span{color:var(--accent-light)}
+.project-picker{margin:10px 10px 6px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:border-color .15s}
+.project-picker:hover{border-color:var(--border-strong)}
+.project-dot{width:8px;height:8px;background:var(--green);border-radius:50%;flex-shrink:0}
+.project-name{font-size:12px;font-weight:600;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.project-caret{color:var(--text-muted);font-size:10px}
+.nav-section{padding:6px 10px 2px;font-size:10px;font-weight:600;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;margin-top:4px}
+.nav{flex:1;overflow-y:auto;padding:4px 8px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:var(--radius);font-size:13.5px;font-weight:500;color:var(--text-secondary);cursor:pointer;transition:all .12s;user-select:none;margin-bottom:1px}
+.nav-item:hover{background:var(--bg-hover);color:var(--text-primary)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent-light)}
+.nav-icon{width:16px;text-align:center;font-size:14px;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-family:var(--font-mono);font-weight:500}
+.sidebar-footer{border-top:1px solid var(--border);padding:10px 8px}
+.sidebar-user{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:var(--radius);cursor:pointer}
+.sidebar-user:hover{background:var(--bg-hover)}
+.user-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.user-name{font-size:12px;font-weight:600}
+.user-role{font-size:10px;color:var(--text-muted)}
+
+/* ── Main ─────────────────────────────────────────── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:var(--topbar-h);min-height:var(--topbar-h);background:var(--bg-surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:12px}
+.topbar-breadcrumb{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);flex:1}
+.crumb{cursor:pointer;transition:color .12s}.crumb:hover{color:var(--text-primary)}
+.crumb.active{color:var(--text-primary);font-weight:600}
+.sep{color:var(--text-muted)}
+.topbar-actions{display:flex;align-items:center;gap:8px}
+
+/* ── Buttons ──────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--radius);font-size:13px;font-weight:500;font-family:'Instrument Sans',sans-serif;cursor:pointer;border:none;transition:all .12s}
+.btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg-hover);color:var(--text-primary);border-color:var(--border-strong)}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 0 12px var(--accent-glow)}
+.btn-primary:hover{background:#6d28d9}
+.btn-danger{background:var(--red-dim);color:var(--red);border:1px solid rgba(239,68,68,.25)}
+.btn-danger:hover{background:rgba(239,68,68,.2)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── Content ──────────────────────────────────────── */
+.content{flex:1;overflow-y:auto;padding:24px}
+.view{display:none}.view.active{display:block}
+
+/* ── Loading states ───────────────────────────────── */
+.loading-spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border-strong);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.skeleton{background:linear-gradient(90deg,var(--bg-elevated) 25%,var(--bg-hover) 50%,var(--bg-elevated) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:4px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ── Page header ──────────────────────────────────── */
+.page-header{margin-bottom:24px}
+.page-title{font-size:22px;font-weight:700;letter-spacing:-0.4px}
+.page-subtitle{font-size:13.5px;color:var(--text-secondary);margin-top:4px}
+
+/* ── Metric cards ─────────────────────────────────── */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;position:relative;overflow:hidden;transition:border-color .15s}
+.card:hover{border-color:var(--border-strong)}
+.card-label{font-size:11.5px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+.card-value{font-size:32px;font-weight:700;font-family:var(--font-mono);letter-spacing:-1px;line-height:1}
+.card-sub{font-size:12px;color:var(--text-secondary);margin-top:8px;display:flex;align-items:center;gap:5px}
+.card-delta{font-family:var(--font-mono);font-size:11px;font-weight:500;padding:2px 6px;border-radius:4px}
+.delta-up{background:var(--green-dim);color:var(--green)}
+.delta-down{background:var(--red-dim);color:var(--red)}
+.card-accent-line{position:absolute;bottom:0;left:0;right:0;height:2px}
+
+/* ── Panels ───────────────────────────────────────── */
+.panel{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:16px}
+.panel-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.panel-title{font-size:14px;font-weight:600}
+.panel-body{padding:20px}
+.panel-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.panel-grid-main{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
+
+/* ── Table ────────────────────────────────────────── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;cursor:pointer}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--bg-hover)}
+tbody td{padding:12px 16px;vertical-align:middle}
+.mono{font-family:var(--font-mono);font-size:12px}
+
+/* ── Badges ───────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;font-family:var(--font-mono);white-space:nowrap}
+.badge-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.badge-passed{background:var(--green-dim);color:var(--green)}.badge-passed .badge-dot{background:var(--green)}
+.badge-failed{background:var(--red-dim);color:var(--red)}.badge-failed .badge-dot{background:var(--red)}
+.badge-flaky{background:var(--yellow-dim);color:var(--yellow)}.badge-flaky .badge-dot{background:var(--yellow)}
+.badge-running{background:var(--blue-dim);color:var(--blue)}.badge-running .badge-dot{background:var(--blue);box-shadow:0 0 6px var(--blue);animation:pulse 1.2s infinite}
+.badge-skipped{background:rgba(255,255,255,0.05);color:var(--text-muted)}.badge-skipped .badge-dot{background:var(--text-muted)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── Progress bar ─────────────────────────────────── */
+.progress-bar{display:flex;align-items:center;gap:8px}
+.progress-track{flex:1;height:5px;background:var(--bg-active);border-radius:3px;overflow:hidden;min-width:60px}
+.progress-fill{height:100%;border-radius:3px;background:var(--green);transition:width .3s}
+.progress-label{font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);white-space:nowrap}
+
+/* ── Filters ──────────────────────────────────────── */
+.filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.search-wrap{position:relative;flex:1;min-width:200px;max-width:320px}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:13px}
+.search-input{width:100%;padding:7px 12px 7px 32px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-primary);font-family:'Instrument Sans',sans-serif;font-size:13px;outline:none;transition:border-color .15s}
+.search-input:focus{border-color:var(--accent)}
+.search-input::placeholder{color:var(--text-muted)}
+select.fsel{padding:7px 28px 7px 10px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-primary);font-family:'Instrument Sans',sans-serif;font-size:13px;outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2350507a' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;transition:border-color .15s}
+select.fsel:focus{border-color:var(--accent)}
+.count-chip{font-family:var(--font-mono);font-size:11px;color:var(--text-muted);background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;padding:2px 8px}
+.branch-tag{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border);border-radius:4px;padding:2px 6px;white-space:nowrap}
+.branch-tag::before{content:'⎇';font-size:10px}
+.tag{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border);border-radius:4px;padding:2px 6px}
+
+/* ── Run Detail ───────────────────────────────────── */
+.run-summary-bar{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 24px;display:grid;grid-template-columns:auto 1fr auto;gap:24px;align-items:center;margin-bottom:20px}
+.run-summary-stats{display:flex;gap:28px}
+.run-stat-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.run-stat-value{font-family:var(--font-mono);font-size:20px;font-weight:500}
+.suite-accordion{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:10px;overflow:hidden}
+.suite-header{display:flex;align-items:center;gap:12px;padding:14px 18px;cursor:pointer;transition:background .1s}
+.suite-header:hover{background:var(--bg-hover)}
+.suite-toggle{color:var(--text-muted);font-size:11px;transition:transform .2s}
+.suite-toggle.open{transform:rotate(90deg)}
+.suite-name{font-weight:600;font-size:13.5px;flex:1;font-family:var(--font-mono);color:var(--text-code)}
+.suite-meta{display:flex;align-items:center;gap:8px}
+.suite-body{border-top:1px solid var(--border);display:none}
+.suite-body.open{display:block}
+.test-row{display:flex;align-items:flex-start;gap:12px;padding:10px 18px;border-bottom:1px solid var(--border);transition:background .1s}
+.test-row:last-child{border-bottom:none}
+.test-row:hover{background:var(--bg-hover)}
+.test-icon{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;margin-top:2px}
+.ti-pass{background:var(--green-dim);color:var(--green)}
+.ti-fail{background:var(--red-dim);color:var(--red)}
+.ti-flaky{background:var(--yellow-dim);color:var(--yellow)}
+.ti-skip{background:rgba(255,255,255,.05);color:var(--text-muted)}
+.test-info{flex:1}
+.test-name{font-size:13px;font-weight:500}
+.test-path{font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-top:2px}
+.test-dur{font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);flex-shrink:0}
+.stack-trace{background:var(--bg-base);border-top:1px solid var(--border);padding:12px 18px;font-family:var(--font-mono);font-size:11.5px;color:#ff8080;line-height:1.65;white-space:pre-wrap;word-break:break-all}
+.retry-badge{font-family:var(--font-mono);font-size:10px;background:var(--yellow-dim);color:var(--yellow);border-radius:4px;padding:1px 5px;margin-left:6px}
+
+/* ── Analytics ────────────────────────────────────── */
+.flaky-item{margin-bottom:14px}
+.flaky-name{font-family:var(--font-mono);font-size:12px;color:var(--text-primary);margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.flaky-bar-wrap{display:flex;align-items:center;gap:10px}
+.flaky-track{flex:1;height:6px;background:var(--bg-active);border-radius:3px;overflow:hidden}
+.flaky-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--yellow),#f97316)}
+.flaky-pct{font-family:var(--font-mono);font-size:11px;color:var(--yellow);min-width:34px;text-align:right}
+
+/* ── Integrations ─────────────────────────────────── */
+.int-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.int-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;display:flex;flex-direction:column;gap:12px;transition:border-color .15s}
+.int-card:hover{border-color:var(--border-strong)}
+.int-header{display:flex;align-items:flex-start;justify-content:space-between}
+.int-logo{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.int-status{width:8px;height:8px;border-radius:50%;margin-top:4px}
+.int-status.on{background:var(--green);box-shadow:0 0 6px var(--green)}
+.int-status.off{background:var(--text-muted)}
+.int-name{font-weight:700;font-size:14px}
+.int-desc{font-size:12px;color:var(--text-secondary);line-height:1.5}
+.int-snippet{background:var(--bg-base);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-family:var(--font-mono);font-size:11px;color:var(--text-code);line-height:1.6;white-space:pre;overflow-x:auto}
+
+/* ── Settings ─────────────────────────────────────── */
+.settings-layout{display:grid;grid-template-columns:180px 1fr;gap:24px}
+.s-nav-item{padding:8px 12px;border-radius:var(--radius);font-size:13px;font-weight:500;color:var(--text-secondary);cursor:pointer;transition:all .12s;margin-bottom:1px}
+.s-nav-item:hover{background:var(--bg-hover);color:var(--text-primary)}
+.s-nav-item.active{background:var(--accent-dim);color:var(--accent-light)}
+.s-section{display:none}.s-section.active{display:block}
+.s-panel{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:16px}
+.s-panel-header{padding:16px 20px;border-bottom:1px solid var(--border)}
+.s-panel-title{font-weight:600;font-size:14px}
+.s-panel-sub{font-size:12px;color:var(--text-secondary);margin-top:3px}
+.s-row{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);gap:24px}
+.s-row:last-child{border-bottom:none}
+.s-row-label{font-size:13.5px;font-weight:500}
+.s-row-desc{font-size:12px;color:var(--text-secondary);margin-top:2px}
+.s-input{padding:7px 12px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-primary);font-family:'Instrument Sans',sans-serif;font-size:13px;outline:none;transition:border-color .15s;min-width:200px}
+.s-input:focus{border-color:var(--accent)}
+.toggle{position:relative;width:36px;height:20px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:var(--bg-active);border-radius:20px;transition:background .2s}
+.toggle-slider::before{content:'';position:absolute;width:14px;height:14px;border-radius:50%;background:var(--text-muted);top:3px;left:3px;transition:all .2s}
+.toggle input:checked+.toggle-slider{background:var(--accent)}
+.toggle input:checked+.toggle-slider::before{transform:translateX(16px);background:#fff}
+.api-key-row{display:flex;align-items:center;gap:8px}
+.api-key-display{flex:1;padding:7px 12px;background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font-mono);font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ── Empty / error states ─────────────────────────── */
+.empty-state{text-align:center;padding:60px 20px;color:var(--text-muted)}
+.empty-state-icon{font-size:36px;margin-bottom:12px}
+.empty-state-title{font-size:15px;font-weight:600;color:var(--text-secondary);margin-bottom:6px}
+
+/* ── Toast ────────────────────────────────────────── */
+.toast-container{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:9999}
+.toast{background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--text-primary);box-shadow:0 8px 24px rgba(0,0,0,0.4);animation:slideIn .2s ease;max-width:320px}
+.toast.success{border-left:3px solid var(--green)}
+.toast.error{border-left:3px solid var(--red)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:none;opacity:1}}
+
+/* ── Responsive ───────────────────────────────────── */
+@media(max-width:1100px){
+  .cards{grid-template-columns:repeat(2,1fr)}
+  .int-grid{grid-template-columns:repeat(2,1fr)}
+  .panel-grid-2,.panel-grid-main{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ════════ SIDEBAR ════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">▶</div>
+    <div class="logo-text">Act<span>Board</span></div>
+  </div>
+  <div class="project-picker" id="project-picker">
+    <div class="project-dot"></div>
+    <div class="project-name" id="sidebar-project-name">Loading…</div>
+    <div class="project-caret">▾</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Overview</div>
+    <div class="nav-item active" data-view="dashboard"><span class="nav-icon">◈</span> Dashboard</div>
+    <div class="nav-section">Testing</div>
+    <div class="nav-item" data-view="runs"><span class="nav-icon">▤</span> Test Runs <span class="nav-badge" id="failed-badge" style="display:none">0</span></div>
+    <div class="nav-item" data-view="analytics"><span class="nav-icon">▦</span> Analytics</div>
+    <div class="nav-section">Config</div>
+    <div class="nav-item" data-view="integrations"><span class="nav-icon">⬡</span> Integrations</div>
+    <div class="nav-item" data-view="settings"><span class="nav-icon">◎</span> Settings</div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="user-avatar">A</div>
+      <div>
+        <div class="user-name">Admin</div>
+        <div class="user-role">actboard · v1.0.0</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ════════ MAIN ════════ -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-breadcrumb" id="breadcrumb">
+      <span class="crumb active">Dashboard</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-sm" id="refresh-btn" onclick="refreshCurrentView()">↻ Refresh</button>
+      <button class="btn btn-primary btn-sm" onclick="showRunModal()">▶ Run Tests</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ DASHBOARD ══ -->
+    <div class="view active" id="view-dashboard">
+      <div class="page-header">
+        <div class="page-title">Dashboard</div>
+        <div class="page-subtitle" id="dash-subtitle">Loading…</div>
+      </div>
+      <div class="cards" id="metric-cards">
+        <div class="card"><div class="card-label">Pass Rate</div><div class="card-value skeleton" style="height:38px;width:90px"> </div></div>
+        <div class="card"><div class="card-label">Total Runs</div><div class="card-value skeleton" style="height:38px;width:60px"> </div></div>
+        <div class="card"><div class="card-label">Avg Duration</div><div class="card-value skeleton" style="height:38px;width:80px"> </div></div>
+        <div class="card"><div class="card-label">Flaky Tests</div><div class="card-value skeleton" style="height:38px;width:40px"> </div></div>
+      </div>
+      <div class="panel-grid-main">
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">Pass Rate — 14 Day Trend</div><span class="tag">Daily</span></div>
+          <div class="panel-body"><div style="height:180px"><canvas id="chart-trend"></canvas></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">Overall Results</div></div>
+          <div class="panel-body" style="display:flex;flex-direction:column;align-items:center;gap:16px">
+            <div style="height:140px;width:140px"><canvas id="chart-donut"></canvas></div>
+            <div id="donut-legend" style="width:100%;display:flex;flex-direction:column;gap:6px;font-size:12px"></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">Recent Runs</div><button class="btn btn-ghost btn-sm" onclick="navigate('runs')">View all →</button></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Run ID</th><th>Status</th><th>Branch</th><th>Tests</th><th>Pass Rate</th><th>Duration</th><th>Age</th></tr></thead>
+          <tbody id="dash-runs-body"><tr><td colspan="7" style="text-align:center;padding:30px"><span class="loading-spinner"></span></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TEST RUNS ══ -->
+    <div class="view" id="view-runs">
+      <div class="page-header"><div class="page-title">Test Runs</div><div class="page-subtitle">Click any row to drill in</div></div>
+      <div class="filters">
+        <div class="search-wrap"><span class="search-icon">⌕</span><input class="search-input" id="search-runs" type="text" placeholder="Search branch, commit…" oninput="runsPage=0;loadRuns()" /></div>
+        <select class="fsel" id="filter-status" onchange="runsPage=0;loadRuns()">
+          <option value="">All statuses</option>
+          <option value="passed">Passed</option>
+          <option value="failed">Failed</option>
+          <option value="flaky">Flaky</option>
+          <option value="running">Running</option>
+        </select>
+        <select class="fsel" id="filter-branch" onchange="runsPage=0;loadRuns()">
+          <option value="">All branches</option>
+        </select>
+        <select class="fsel" id="filter-browser" onchange="runsPage=0;loadRuns()">
+          <option value="">All browsers</option>
+          <option value="chromium">Chromium</option>
+          <option value="firefox">Firefox</option>
+          <option value="webkit">WebKit</option>
+        </select>
+        <span class="count-chip" id="runs-count">— runs</span>
+      </div>
+      <div class="panel">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Run ID</th><th>Status</th><th>Branch</th><th>Commit</th><th>Tests</th><th>Pass Rate</th><th>Duration</th><th>Browsers</th><th>Age</th></tr></thead>
+            <tbody id="runs-body"><tr><td colspan="9" style="text-align:center;padding:30px"><span class="loading-spinner"></span></td></tr></tbody>
+          </table>
+        </div>
+        <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px">
+          <button class="btn btn-ghost btn-sm" id="prev-btn" onclick="runsPage--;loadRuns()">← Prev</button>
+          <span id="page-info" class="mono" style="font-size:11px;color:var(--text-muted)">Page 1</span>
+          <button class="btn btn-ghost btn-sm" id="next-btn" onclick="runsPage++;loadRuns()">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ RUN DETAIL ══ -->
+    <div class="view" id="view-detail">
+      <div class="run-summary-bar" id="run-detail-header"></div>
+      <div id="run-suites"></div>
+    </div>
+
+    <!-- ══ ANALYTICS ══ -->
+    <div class="view" id="view-analytics">
+      <div class="page-header"><div class="page-title">Analytics</div><div class="page-subtitle">30-day window</div></div>
+      <div class="panel-grid-2">
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">Pass Rate Over Time</div><span class="tag">30d</span></div>
+          <div class="panel-body"><div style="height:200px"><canvas id="chart-passrate"></canvas></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">Avg Run Duration</div><span class="tag">30d</span></div>
+          <div class="panel-body"><div style="height:200px"><canvas id="chart-duration"></canvas></div></div>
+        </div>
+      </div>
+      <div class="panel-grid-2">
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">Flaky Test Detector</div><span class="tag">Top 10</span></div>
+          <div class="panel-body"><div id="flaky-list"><div style="text-align:center;padding:20px"><span class="loading-spinner"></span></div></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">Browser Coverage</div></div>
+          <div class="panel-body" style="display:flex;flex-direction:column;align-items:center;gap:16px">
+            <div style="height:160px;width:160px"><canvas id="chart-browser"></canvas></div>
+            <div id="browser-legend" style="width:100%;display:flex;flex-direction:column;gap:8px;font-size:12px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ INTEGRATIONS ══ -->
+    <div class="view" id="view-integrations">
+      <div class="page-header"><div class="page-title">Integrations</div><div class="page-subtitle">Connect ActBoard to your CI/CD pipeline and team tools</div></div>
+      <div class="int-grid" id="int-grid"></div>
+    </div>
+
+    <!-- ══ SETTINGS ══ -->
+    <div class="view" id="view-settings">
+      <div class="page-header"><div class="page-title">Settings</div><div class="page-subtitle">Manage project configuration</div></div>
+      <div class="settings-layout">
+        <div>
+          <div class="s-nav-item active" onclick="switchSetting('project',this)">Project</div>
+          <div class="s-nav-item" onclick="switchSetting('notifications',this)">Notifications</div>
+          <div class="s-nav-item" onclick="switchSetting('api',this)">API Keys</div>
+          <div class="s-nav-item" onclick="switchSetting('team',this)">Team</div>
+          <div class="s-nav-item" onclick="switchSetting('danger',this)">Danger Zone</div>
+        </div>
+        <div>
+          <!-- Project -->
+          <div class="s-section active" id="s-project">
+            <div class="s-panel">
+              <div class="s-panel-header"><div class="s-panel-title">Project Details</div><div class="s-panel-sub">Basic configuration</div></div>
+              <div class="s-row"><div><div class="s-row-label">Project Name</div><div class="s-row-desc">Shown in sidebar and reports</div></div><input class="s-input" id="s-proj-name" type="text" value="Loading…" /></div>
+              <div class="s-row"><div><div class="s-row-label">Base URL</div><div class="s-row-desc">URL your tests run against</div></div><input class="s-input" id="s-proj-url" type="text" value="https://app.example.com" /></div>
+              <div class="s-row"><div><div class="s-row-label">Default Timeout</div><div class="s-row-desc">Per-test timeout (ms)</div></div><input class="s-input" type="number" value="30000" style="min-width:120px" /></div>
+              <div class="s-row"><div><div class="s-row-label">Retries on Failure</div><div class="s-row-desc">Auto-retry count</div></div><input class="s-input" type="number" value="2" style="min-width:120px" /></div>
+            </div>
+            <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary" onclick="saveProjectSettings()">Save Changes</button></div>
+          </div>
+          <!-- Notifications -->
+          <div class="s-section" id="s-notifications">
+            <div class="s-panel">
+              <div class="s-panel-header"><div class="s-panel-title">Notification Preferences</div></div>
+              <div class="s-row"><div><div class="s-row-label">Run Failed on main</div><div class="s-row-desc">Alert when main branch run fails</div></div><label class="toggle"><input type="checkbox" checked /><span class="toggle-slider"></span></label></div>
+              <div class="s-row"><div><div class="s-row-label">New Flaky Test Detected</div><div class="s-row-desc">Alert when flake rate &gt; 5% on any test</div></div><label class="toggle"><input type="checkbox" checked /><span class="toggle-slider"></span></label></div>
+              <div class="s-row"><div><div class="s-row-label">Run Complete (all branches)</div><div class="s-row-desc">Notify on every run completion</div></div><label class="toggle"><input type="checkbox" /><span class="toggle-slider"></span></label></div>
+              <div class="s-row"><div><div class="s-row-label">Weekly Summary Digest</div><div class="s-row-desc">Email digest every Monday</div></div><label class="toggle"><input type="checkbox" checked /><span class="toggle-slider"></span></label></div>
+            </div>
+          </div>
+          <!-- API Keys -->
+          <div class="s-section" id="s-api">
+            <div class="s-panel">
+              <div class="s-panel-header"><div class="s-panel-title">API Keys</div><div class="s-panel-sub">Use in your CI to publish test results</div></div>
+              <div id="api-keys-list"><div style="text-align:center;padding:20px"><span class="loading-spinner"></span></div></div>
+            </div>
+            <div class="s-panel">
+              <div class="s-panel-header"><div class="s-panel-title">Reporter Snippet</div><div class="s-panel-sub">Add to playwright.config.ts</div></div>
+              <div class="panel-body"><pre class="int-snippet" id="reporter-snippet">reporter: [
+  ['list'],
+  ['@actboard/playwright-reporter', {
+    apiKey: process.env.ACTBOARD_API_KEY,
+    project: 'loading…',
+    serverUrl: 'http://localhost:3141',
+  }],
+],</pre></div>
+            </div>
+          </div>
+          <!-- Team -->
+          <div class="s-section" id="s-team">
+            <div class="s-panel">
+              <div class="s-panel-header"><div class="s-panel-title">Team Members</div></div>
+              <div class="s-row"><div style="display:flex;align-items:center;gap:10px"><div class="user-avatar" style="width:32px;height:32px;font-size:13px">A</div><div><div class="s-row-label">Admin</div><div class="s-row-desc">Server owner</div></div></div><span class="badge badge-passed">Owner</span></div>
+            </div>
+            <button class="btn btn-ghost">+ Invite Member</button>
+          </div>
+          <!-- Danger -->
+          <div class="s-section" id="s-danger">
+            <div class="s-panel" style="border-color:rgba(239,68,68,.25)">
+              <div class="s-panel-header" style="border-color:rgba(239,68,68,.15)"><div class="s-panel-title" style="color:var(--red)">Danger Zone</div><div class="s-panel-sub">Irreversible actions</div></div>
+              <div class="s-row"><div><div class="s-row-label">Clear All Run History</div><div class="s-row-desc">Permanently delete all test runs for this project</div></div><button class="btn btn-danger btn-sm" onclick="confirmClearRuns()">Clear History</button></div>
+              <div class="s-row" style="border-bottom:none"><div><div class="s-row-label">Delete Project</div><div class="s-row-desc">Permanently delete this project and all data</div></div><button class="btn btn-danger btn-sm">Delete Project</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<!-- ════════ SETUP MODAL (first run — no project found) ════════ -->
+<div id="setup-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center">
+  <div style="background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:16px;padding:36px 40px;width:480px;max-width:90vw">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <div class="logo-icon" style="width:36px;height:36px;font-size:16px">▶</div>
+      <div><div style="font-size:18px;font-weight:700">Welcome to ActBoard</div><div style="font-size:13px;color:var(--text-secondary);margin-top:2px">Create your first project to get started</div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;display:block;margin-bottom:6px">Project Name</label>
+        <input id="setup-name" class="s-input" type="text" placeholder="e.g. e2e-production" style="width:100%" />
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;display:block;margin-bottom:6px">Base URL <span style="font-weight:400;text-transform:none">(optional)</span></label>
+        <input id="setup-url" class="s-input" type="text" placeholder="https://app.example.com" style="width:100%" />
+      </div>
+    </div>
+    <div id="setup-key-result" style="display:none;margin-top:16px;background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Your API Key — copy it now, it won't be shown again</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <code id="setup-key-text" class="mono" style="flex:1;font-size:12px;color:var(--accent-light);word-break:break-all"></code>
+        <button class="btn btn-ghost btn-sm" onclick="copySetupKey()">Copy</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:24px">
+      <button id="setup-submit-btn" class="btn btn-primary" style="flex:1" onclick="submitSetup()">Create Project & Get API Key</button>
+      <button id="setup-done-btn" class="btn btn-ghost" style="display:none" onclick="closeSetup()">Open Dashboard →</button>
+    </div>
+    <div style="margin-top:16px;font-size:12px;color:var(--text-muted);text-align:center">Or seed demo data: <code class="mono" style="color:var(--text-secondary)">node scripts/seed.js</code></div>
+  </div>
+</div>
+
+<!-- ════════ RUN MODAL ════════ -->
+<div id="run-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:16px;padding:36px 40px;width:520px;max-width:90vw">
+    <div style="font-size:18px;font-weight:700;margin-bottom:6px">▶ Trigger a Test Run</div>
+    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:24px">ActBoard collects results when your reporter publishes them. Runs are triggered by your CI or locally.</div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Local run</div>
+        <pre class="int-snippet" style="margin:0">ACTBOARD_API_KEY=your_key npx playwright test</pre>
+      </div>
+      <div style="background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">GitHub Actions</div>
+        <pre class="int-snippet" style="margin:0;font-size:10px">- name: Run Playwright Tests
+  env:
+    ACTBOARD_API_KEY: ${{ secrets.ACTBOARD_API_KEY }}
+  run: npx playwright test</pre>
+      </div>
+    </div>
+    <button class="btn btn-ghost" style="margin-top:20px;width:100%" onclick="closeRunModal()">Close</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   CONFIG & STATE
+═══════════════════════════════════════════ */
+const API = window.location.origin;
+let PROJECT_ID   = null;
+let PROJECT_SLUG = null;
+let currentView  = 'dashboard';
+let runsPage     = 0;
+const PAGE_SIZE  = 25;
+let trendChart = null, donutChart = null, passrateChart = null, durationChart = null, browserChart = null;
+
+/* ═══════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════ */
+async function apiFetch(path) {
+  const res = await fetch(API + path);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function msToHuman(ms) {
+  if (!ms || ms < 1000) return ms ? `${ms}ms` : '—';
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}s`;
+  return `${Math.floor(s/60)}m ${s%60}s`;
+}
+
+function timeAgo(epochSeconds) {
+  const diff = Math.floor(Date.now()/1000) - epochSeconds;
+  if (diff < 60)   return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  if (diff < 86400)return `${Math.floor(diff/3600)}h ago`;
+  return `${Math.floor(diff/86400)}d ago`;
+}
+
+function statusBadge(status) {
+  return `<span class="badge badge-${status}"><span class="badge-dot"></span>${esc(status)}</span>`;
+}
+
+function passBar(rate) {
+  const pct = Math.round(rate);
+  const col = pct>=90?'var(--green)':pct>=70?'var(--yellow)':'var(--red)';
+  return `<div class="progress-bar"><div class="progress-track"><div class="progress-fill" style="width:${pct}%;background:${col}"></div></div><span class="progress-label">${pct}%</span></div>`;
+}
+
+function browsersTag(browsers) {
+  try {
+    const arr = typeof browsers === 'string' ? JSON.parse(browsers) : (browsers||[]);
+    return arr.map(b=>`<span class="tag" style="margin-right:2px">${esc(b)}</span>`).join('');
+  } catch { return '—'; }
+}
+
+function toast(msg, type='success') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+/* ═══════════════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════════════ */
+const VIEW_LABELS = {dashboard:'Dashboard',runs:'Test Runs',detail:'Run Detail',analytics:'Analytics',integrations:'Integrations',settings:'Settings'};
+
+function navigate(view, runId) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  currentView = view;
+  document.getElementById('view-'+view).classList.add('active');
+  const navEl = document.querySelector(`.nav-item[data-view="${view}"]`);
+  if (navEl) navEl.classList.add('active');
+
+  const bc = document.getElementById('breadcrumb');
+  if (view==='detail' && runId) {
+    bc.innerHTML = `<span class="crumb" onclick="navigate('dashboard')">Dashboard</span><span class="sep">/</span><span class="crumb" onclick="navigate('runs')">Test Runs</span><span class="sep">/</span><span class="crumb active mono">${esc(runId)}</span>`;
+  } else {
+    bc.innerHTML = `<span class="crumb active">${esc(VIEW_LABELS[view]||view)}</span>`;
+  }
+
+  if (view==='analytics' && !passrateChart) loadAnalytics();
+  if (view==='settings') loadApiKeys();
+}
+
+document.querySelectorAll('.nav-item[data-view]').forEach(el => {
+  el.addEventListener('click', () => navigate(el.dataset.view));
+});
+
+/* ═══════════════════════════════════════════
+   BOOT — discover project
+═══════════════════════════════════════════ */
+async function boot() {
+  try {
+    const { projects } = await apiFetch('/api/projects');
+    if (!projects.length) {
+      showSetupModal();
+      return;
+    }
+    const p = projects[0];
+    PROJECT_ID   = p.id;
+    PROJECT_SLUG = p.slug;
+    document.getElementById('sidebar-project-name').textContent = p.name;
+    document.getElementById('s-proj-name').value = p.name;
+    document.getElementById('s-proj-url').value  = p.base_url || '';
+    updateReporterSnippet(p.slug);
+    await Promise.all([loadDashboard(), loadBranchFilter()]);
+  } catch(e) {
+    toast('Could not connect to ActBoard server', 'error');
+    console.error(e);
+  }
+}
+
+function updateReporterSnippet(slug) {
+  document.getElementById('reporter-snippet').textContent =
+`reporter: [
+  ['list'],
+  ['@actboard/playwright-reporter', {
+    apiKey: process.env.ACTBOARD_API_KEY,
+    project: '${slug}',
+    serverUrl: '${API}',
+  }],
+],`;
+}
+
+/* ═══════════════════════════════════════════
+   SETUP MODAL (first run)
+═══════════════════════════════════════════ */
+function showSetupModal() {
+  document.getElementById('sidebar-project-name').textContent = 'No project';
+  const overlay = document.getElementById('setup-overlay');
+  overlay.style.display = 'flex';
+  setTimeout(() => document.getElementById('setup-name').focus(), 50);
+}
+
+async function submitSetup() {
+  const name = document.getElementById('setup-name').value.trim();
+  if (!name) { toast('Project name is required', 'error'); return; }
+  const btn = document.getElementById('setup-submit-btn');
+  btn.disabled = true; btn.textContent = 'Creating…';
+  try {
+    const res = await fetch(`${API}/api/projects`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, base_url: document.getElementById('setup-url').value.trim() || null }),
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Failed'); }
+    const { project, api_key } = await res.json();
+    PROJECT_ID = project.id; PROJECT_SLUG = project.slug;
+    document.getElementById('sidebar-project-name').textContent = project.name;
+    document.getElementById('s-proj-name').value = project.name;
+    document.getElementById('s-proj-url').value  = project.base_url || '';
+    updateReporterSnippet(project.slug);
+    // Show the key
+    document.getElementById('setup-key-text').textContent = api_key;
+    document.getElementById('setup-key-result').style.display = 'block';
+    btn.style.display = 'none';
+    document.getElementById('setup-done-btn').style.display = 'inline-flex';
+    toast(`Project "${project.name}" created!`);
+    await Promise.all([loadDashboard(), loadBranchFilter()]);
+  } catch(e) {
+    toast(e.message || 'Failed to create project', 'error');
+    btn.disabled = false; btn.textContent = 'Create Project & Get API Key';
+  }
+}
+
+function copySetupKey() {
+  const key = document.getElementById('setup-key-text').textContent;
+  navigator.clipboard.writeText(key).then(() => toast('API key copied!'));
+}
+
+function closeSetup() {
+  document.getElementById('setup-overlay').style.display = 'none';
+  loadApiKeys();
+}
+
+/* ═══════════════════════════════════════════
+   DASHBOARD
+═══════════════════════════════════════════ */
+async function loadDashboard() {
+  if (!PROJECT_ID) return;
+  try {
+    const [summary, trend, { runs }] = await Promise.all([
+      apiFetch(`/api/analytics/summary?project_id=${PROJECT_ID}&days=30`),
+      apiFetch(`/api/analytics/trend?project_id=${PROJECT_ID}&days=14`),
+      apiFetch(`/api/runs?project_id=${PROJECT_ID}&limit=8`),
+    ]);
+    renderMetricCards(summary);
+    renderTrendChart(trend.trend);
+    renderDonutChart(summary);
+    renderDashRuns(runs);
+
+    const failedCount = summary.failed_runs || 0;
+    const badge = document.getElementById('failed-badge');
+    if (failedCount > 0) { badge.textContent = failedCount; badge.style.display='inline'; }
+
+    document.getElementById('dash-subtitle').textContent =
+      `${summary.total_runs} runs in last 30 days · ${PROJECT_SLUG} · pass rate ${summary.pass_rate||0}%`;
+  } catch(e) { console.error(e); toast('Dashboard load error', 'error'); }
+}
+
+function renderMetricCards(s) {
+  const avgDur = msToHuman(Math.round(s.avg_duration_ms || 0));
+  document.getElementById('metric-cards').innerHTML = `
+    <div class="card">
+      <div class="card-accent-line" style="background:linear-gradient(90deg,var(--green),#16a34a)"></div>
+      <div class="card-label">Pass Rate</div>
+      <div class="card-value" style="color:var(--green)">${s.pass_rate||0}%</div>
+      <div class="card-sub"><span>${s.total_tests||0} total tests</span></div>
+    </div>
+    <div class="card">
+      <div class="card-accent-line" style="background:linear-gradient(90deg,var(--accent),#4f46e5)"></div>
+      <div class="card-label">Total Runs</div>
+      <div class="card-value">${s.total_runs||0}</div>
+      <div class="card-sub"><span>${s.failed_runs||0} failed · ${s.flaky_runs||0} flaky</span></div>
+    </div>
+    <div class="card">
+      <div class="card-accent-line" style="background:linear-gradient(90deg,var(--blue),#2563eb)"></div>
+      <div class="card-label">Avg Duration</div>
+      <div class="card-value" style="font-size:22px">${avgDur}</div>
+      <div class="card-sub"><span>per run</span></div>
+    </div>
+    <div class="card">
+      <div class="card-accent-line" style="background:linear-gradient(90deg,var(--yellow),#d97706)"></div>
+      <div class="card-label">Flaky Tests</div>
+      <div class="card-value" style="color:var(--yellow)">${s.flaky_tests||0}</div>
+      <div class="card-sub"><span>${s.skipped_tests||0} skipped</span></div>
+    </div>
+  `;
+}
+
+function renderDashRuns(runs) {
+  const tbody = document.getElementById('dash-runs-body');
+  if (!runs.length) { tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted)">No runs yet. Publish your first run using the reporter.</td></tr>`; return; }
+  tbody.innerHTML = runs.map(r => `
+    <tr onclick="openRunDetail('${esc(r.id)}')">
+      <td class="mono" style="color:var(--accent-light)">${esc(r.id.slice(-12))}</td>
+      <td>${statusBadge(r.status)}</td>
+      <td><span class="branch-tag">${esc(r.branch||'—')}</span></td>
+      <td class="mono" style="color:var(--text-secondary)">${r.total_tests||0}</td>
+      <td style="min-width:130px">${passBar(r.total_tests?Math.round(r.passed_tests/r.total_tests*100):0)}</td>
+      <td class="mono">${msToHuman(r.duration_ms)}</td>
+      <td style="color:var(--text-secondary);font-size:12px">${timeAgo(r.started_at)}</td>
+    </tr>
+  `).join('');
+}
+
+/* ═══════════════════════════════════════════
+   RUNS VIEW
+═══════════════════════════════════════════ */
+async function loadRuns() {
+  if (!PROJECT_ID) return;
+  const status  = document.getElementById('filter-status').value;
+  const branch  = document.getElementById('filter-branch').value;
+  const browser = document.getElementById('filter-browser').value;
+  const search  = document.getElementById('search-runs').value.trim();
+  const offset  = runsPage * PAGE_SIZE;
+
+  const params = new URLSearchParams({ project_id: PROJECT_ID, limit: PAGE_SIZE, offset });
+  if (status)  params.set('status', status);
+  if (branch)  params.set('branch', branch);
+  if (browser) params.set('browser', browser);
+
+  const tbody = document.getElementById('runs-body');
+  tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:30px"><span class="loading-spinner"></span></td></tr>`;
+
+  try {
+    const { runs, total } = await apiFetch(`/api/runs?${params}`);
+
+    // Client-side search on branch/commit
+    const filtered = search ? runs.filter(r =>
+      (r.branch||'').includes(search) || (r.commit_sha||'').includes(search) || r.id.includes(search)
+    ) : runs;
+
+    document.getElementById('runs-count').textContent = `${total} run${total!==1?'s':''}`;
+    document.getElementById('page-info').textContent  = `Page ${runsPage+1} of ${Math.max(1,Math.ceil(total/PAGE_SIZE))}`;
+    document.getElementById('prev-btn').disabled      = runsPage === 0;
+    document.getElementById('next-btn').disabled      = offset + PAGE_SIZE >= total;
+
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">No runs match your filters.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = filtered.map(r => {
+      const rate = r.total_tests ? Math.round(r.passed_tests/r.total_tests*100) : 0;
+      return `
+        <tr onclick="openRunDetail('${esc(r.id)}')">
+          <td class="mono" style="color:var(--accent-light)">${esc(r.id.slice(-12))}</td>
+          <td>${statusBadge(r.status)}</td>
+          <td><span class="branch-tag">${esc(r.branch||'—')}</span></td>
+          <td class="mono" style="color:var(--text-muted);font-size:11px">${esc((r.commit_sha||'').slice(0,8))}</td>
+          <td class="mono" style="color:var(--text-secondary)">${r.total_tests||0}</td>
+          <td style="min-width:130px">${passBar(rate)}</td>
+          <td class="mono">${msToHuman(r.duration_ms)}</td>
+          <td>${browsersTag(r.browsers)}</td>
+          <td style="color:var(--text-secondary);font-size:12px">${timeAgo(r.started_at)}</td>
+        </tr>
+      `;
+    }).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--red)">Failed to load runs</td></tr>`;
+  }
+}
+
+async function loadBranchFilter() {
+  if (!PROJECT_ID) return;
+  try {
+    const { branches } = await apiFetch(`/api/analytics/summary?project_id=${PROJECT_ID}&days=365`);
+    const sel = document.getElementById('filter-branch');
+    (branches||[]).forEach(b => {
+      const o = document.createElement('option'); o.value=b; o.textContent=b; sel.appendChild(o);
+    });
+  } catch {}
+}
+
+/* ═══════════════════════════════════════════
+   RUN DETAIL
+═══════════════════════════════════════════ */
+async function openRunDetail(id) {
+  navigate('detail', id);
+  document.getElementById('run-detail-header').innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:30px"><span class="loading-spinner"></span></div>`;
+  document.getElementById('run-suites').innerHTML = '';
+
+  try {
+    const { run, suites } = await apiFetch(`/api/runs/${id}`);
+    const rate = run.total_tests ? Math.round(run.passed_tests/run.total_tests*100) : 0;
+
+    document.getElementById('run-detail-header').innerHTML = `
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Run ID</div>
+        <div class="mono" style="font-size:16px;color:var(--accent-light)">${esc(run.id)}</div>
+        <div style="margin-top:8px">${statusBadge(run.status)}</div>
+      </div>
+      <div class="run-summary-stats">
+        <div><div class="run-stat-label">Total</div><div class="run-stat-value">${run.total_tests||0}</div></div>
+        <div><div class="run-stat-label">Passed</div><div class="run-stat-value" style="color:var(--green)">${run.passed_tests||0}</div></div>
+        <div><div class="run-stat-label">Failed</div><div class="run-stat-value" style="color:var(--red)">${run.failed_tests||0}</div></div>
+        <div><div class="run-stat-label">Flaky</div><div class="run-stat-value" style="color:var(--yellow)">${run.flaky_tests||0}</div></div>
+        <div><div class="run-stat-label">Duration</div><div class="run-stat-value">${msToHuman(run.duration_ms)}</div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+        <span class="branch-tag">${esc(run.branch||'—')}</span>
+        <div class="mono" style="font-size:11px;color:var(--text-muted)">commit ${esc((run.commit_sha||'—').slice(0,8))}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${esc(run.triggered_by||'api')} · ${timeAgo(run.started_at)}</div>
+        ${passBar(rate)}
+      </div>
+    `;
+
+    const container = document.getElementById('run-suites');
+    if (!suites.length) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-title">No test suites</div></div>`;
+      return;
+    }
+
+    container.innerHTML = suites.map((suite, si) => {
+      const tests = suite.tests || [];
+      const testsHtml = tests.map(t => {
+        const iconCls = {passed:'ti-pass',failed:'ti-fail',flaky:'ti-flaky',skipped:'ti-skip'}[t.status]||'ti-skip';
+        const iconChar = {passed:'✓',failed:'✕',flaky:'~',skipped:'–'}[t.status]||'–';
+        const retry = t.retry_count > 0 ? `<span class="retry-badge">↺ ${t.retry_count} retr${t.retry_count===1?'y':'ies'}</span>` : '';
+        const stack = (t.error_stack||t.error_message) ? `<div class="stack-trace">${esc(t.error_stack||t.error_message)}</div>` : '';
+        return `
+          <div class="test-row">
+            <div class="test-icon ${iconCls}">${iconChar}</div>
+            <div class="test-info">
+              <div class="test-name">${esc(t.title)}${retry}</div>
+              <div class="test-path">${esc(t.file||'')}${t.line?':'+t.line:''}</div>
+              ${stack}
+            </div>
+            <div class="test-dur">${msToHuman(t.duration_ms)}</div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="suite-accordion">
+          <div class="suite-header" onclick="toggleSuite(this)">
+            <span class="suite-toggle ${si===0?'open':''}">▶</span>
+            <span class="suite-name">${esc(suite.title)}</span>
+            <div class="suite-meta">
+              ${suite.passed_tests ? `<span class="badge badge-passed"><span class="badge-dot"></span>${suite.passed_tests}</span>` : ''}
+              ${suite.failed_tests ? `<span class="badge badge-failed"><span class="badge-dot"></span>${suite.failed_tests}</span>` : ''}
+              ${suite.flaky_tests  ? `<span class="badge badge-flaky"><span class="badge-dot"></span>${suite.flaky_tests}</span>`  : ''}
+              <span class="tag">${tests.length} tests</span>
+            </div>
+          </div>
+          <div class="suite-body ${si===0?'open':''}">${testsHtml}</div>
+        </div>
+      `;
+    }).join('');
+
+  } catch(e) {
+    document.getElementById('run-detail-header').innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--red)">Failed to load run detail</div>`;
+    console.error(e);
+  }
+}
+
+function toggleSuite(header) {
+  const body = header.nextElementSibling;
+  const toggle = header.querySelector('.suite-toggle');
+  body.classList.toggle('open');
+  toggle.classList.toggle('open');
+}
+
+/* ═══════════════════════════════════════════
+   ANALYTICS
+═══════════════════════════════════════════ */
+async function loadAnalytics() {
+  if (!PROJECT_ID) return;
+  try {
+    const [{ trend, run_durations }, { flaky }, { browsers }] = await Promise.all([
+      apiFetch(`/api/analytics/trend?project_id=${PROJECT_ID}&days=30`),
+      apiFetch(`/api/analytics/flaky?project_id=${PROJECT_ID}&days=30`),
+      apiFetch(`/api/analytics/browsers?project_id=${PROJECT_ID}&days=30`),
+    ]);
+    renderPassrateChart(trend);
+    renderDurationChart(run_durations);
+    renderFlakyList(flaky);
+    renderBrowserChart(browsers);
+  } catch(e) { console.error(e); }
+}
+
+/* ═══════════════════════════════════════════
+   CHARTS
+═══════════════════════════════════════════ */
+Chart.defaults.color = 'rgba(255,255,255,0.45)';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.07)';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size = 11;
+
+const TOOLTIP_STYLE = { backgroundColor:'#191923', borderColor:'rgba(255,255,255,0.1)', borderWidth:1 };
+
+function renderTrendChart(trend) {
+  if (trendChart) { trendChart.destroy(); trendChart = null; }
+  const ctx = document.getElementById('chart-trend').getContext('2d');
+  const grad = ctx.createLinearGradient(0,0,0,180);
+  grad.addColorStop(0,'rgba(34,197,94,0.25)');
+  grad.addColorStop(1,'rgba(34,197,94,0)');
+  trendChart = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: trend.map(t=>t.date.slice(5)),
+      datasets:[{ data:trend.map(t=>t.pass_rate), borderColor:'#22c55e', backgroundColor:grad, tension:.4, fill:true, pointRadius:3, pointBackgroundColor:'#22c55e', pointBorderColor:'#111118', pointBorderWidth:2, borderWidth:2 }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:{...TOOLTIP_STYLE, callbacks:{label:c=>` ${c.raw}% pass rate`}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{maxTicksLimit:7}}, y:{grid:{color:'rgba(255,255,255,0.04)'},min:0,max:100,ticks:{callback:v=>v+'%'}}}
+    }
+  });
+}
+
+function renderDonutChart(s) {
+  if (donutChart) { donutChart.destroy(); donutChart = null; }
+  const passed  = s.passed_tests  || 0;
+  const failed  = s.failed_tests  || 0;
+  const flaky   = s.flaky_tests   || 0;
+  const skipped = s.skipped_tests || 0;
+  donutChart = new Chart(document.getElementById('chart-donut').getContext('2d'), {
+    type:'doughnut',
+    data:{
+      labels:['Passed','Failed','Flaky','Skipped'],
+      datasets:[{data:[passed,failed,flaky,skipped], backgroundColor:['#22c55e','#ef4444','#f59e0b','rgba(255,255,255,0.1)'], borderColor:'#111118', borderWidth:3}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{...TOOLTIP_STYLE}}}
+  });
+  document.getElementById('donut-legend').innerHTML = [
+    ['#22c55e','Passed',passed],['#ef4444','Failed',failed],['#f59e0b','Flaky',flaky],['rgba(255,255,255,0.15)','Skipped',skipped]
+  ].map(([c,l,n])=>`<div style="display:flex;align-items:center;gap:8px"><div style="width:10px;height:10px;background:${c};border-radius:2px;flex-shrink:0"></div><span style="flex:1;color:var(--text-secondary)">${l}</span><span class="mono">${n.toLocaleString()}</span></div>`).join('');
+}
+
+function renderPassrateChart(trend) {
+  if (passrateChart) { passrateChart.destroy(); passrateChart = null; }
+  const ctx = document.getElementById('chart-passrate').getContext('2d');
+  const grad = ctx.createLinearGradient(0,0,0,200);
+  grad.addColorStop(0,'rgba(124,58,237,0.3)'); grad.addColorStop(1,'rgba(124,58,237,0)');
+  passrateChart = new Chart(ctx, {
+    type:'line',
+    data:{ labels:trend.map(t=>t.date.slice(5)), datasets:[{ data:trend.map(t=>t.pass_rate), borderColor:'#7c3aed', backgroundColor:grad, tension:.4, fill:true, pointRadius:2, borderWidth:2 }]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TOOLTIP_STYLE,callbacks:{label:c=>` ${c.raw}% pass rate`}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{maxTicksLimit:8}},y:{grid:{color:'rgba(255,255,255,0.04)'},min:0,max:100,ticks:{callback:v=>v+'%'}}}}
+  });
+}
+
+function renderDurationChart(data) {
+  if (durationChart) { durationChart.destroy(); durationChart = null; }
+  durationChart = new Chart(document.getElementById('chart-duration').getContext('2d'), {
+    type:'bar',
+    data:{ labels:data.map(t=>t.date.slice(5)), datasets:[{ data:data.map(t=>Math.round(t.avg_ms/1000)), backgroundColor:'rgba(59,130,246,0.6)', borderColor:'#3b82f6', borderWidth:1, borderRadius:3 }]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TOOLTIP_STYLE,callbacks:{label:c=>{const s=c.raw;return ` ${Math.floor(s/60)}m ${s%60}s avg`;}}}} ,scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{callback:v=>`${Math.floor(v/60)}m`}}}}
+  });
+}
+
+function renderBrowserChart(browsers) {
+  if (browserChart) { browserChart.destroy(); browserChart = null; }
+  const COLORS = { chromium:'#7c3aed', firefox:'#f59e0b', webkit:'#3b82f6' };
+  const colors = browsers.map(b=>COLORS[b.browser]||'#9090aa');
+  browserChart = new Chart(document.getElementById('chart-browser').getContext('2d'), {
+    type:'doughnut',
+    data:{ labels:browsers.map(b=>b.browser), datasets:[{ data:browsers.map(b=>b.pct), backgroundColor:colors, borderColor:'#111118', borderWidth:3 }]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{display:false},tooltip:{...TOOLTIP_STYLE,callbacks:{label:c=>` ${c.label}: ${c.raw}%`}}}}
+  });
+  document.getElementById('browser-legend').innerHTML = browsers.map((b,i)=>`
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="width:10px;height:10px;background:${colors[i]};border-radius:2px;flex-shrink:0"></div>
+      <span style="flex:1;color:var(--text-secondary)">${esc(b.browser)}</span>
+      <span class="mono" style="color:var(--text-primary);font-weight:500">${b.pct}%</span>
+    </div>
+  `).join('');
+}
+
+function renderFlakyList(flaky) {
+  const list = document.getElementById('flaky-list');
+  if (!flaky.length) { list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted)">No flaky tests detected 🎉</div>`; return; }
+  const maxRate = Math.max(...flaky.map(f=>f.flake_rate));
+  list.innerHTML = flaky.map(f=>`
+    <div class="flaky-item">
+      <div class="flaky-name" title="${esc(f.full_title||f.title)}">${esc(f.title)}</div>
+      <div class="flaky-bar-wrap">
+        <div class="flaky-track"><div class="flaky-fill" style="width:${(f.flake_rate/maxRate*100)}%"></div></div>
+        <span class="flaky-pct">${f.flake_rate}%</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ═══════════════════════════════════════════
+   INTEGRATIONS
+═══════════════════════════════════════════ */
+const INTEGRATIONS = [
+  {name:'GitHub',logo:'🐙',bg:'#24292e',connected:true,desc:'Post status checks and PR comments with test results.',snippet:`reporter: ['@actboard/github'],`},
+  {name:'GitLab',logo:'🦊',bg:'#e24329',connected:false,desc:'Push CI pipeline results and MR comments to GitLab.',snippet:`reporter: ['@actboard/gitlab'],`},
+  {name:'Jira',logo:'🔷',bg:'#0052cc',connected:true,desc:'Auto-create issues for failing tests linked to tickets.',snippet:`jira: { project: 'QA', autoCreate: true },`},
+  {name:'Slack',logo:'💬',bg:'#4a154b',connected:true,desc:'Get run summaries and alerts in any Slack channel.',snippet:`slack: { channel: '#qa-alerts' },`},
+  {name:'Jenkins',logo:'🤖',bg:'#d33833',connected:false,desc:'Trigger runs from Jenkins pipelines via webhook.',snippet:`webhook: process.env.ACTBOARD_HOOK,`},
+  {name:'Linear',logo:'◈',bg:'#5e6ad2',connected:false,desc:'Create Linear issues for test regressions automatically.',snippet:`linear: { team: 'ENG', label: 'bug' },`},
+  {name:'CircleCI',logo:'⬤',bg:'#343434',connected:false,desc:'Publish Playwright results to ActBoard from CircleCI.',snippet:`reporter: ['@actboard/circle-reporter'],`},
+  {name:'Azure DevOps',logo:'☁',bg:'#0078d4',connected:false,desc:'Integrate with Azure Pipelines for test tracking.',snippet:`azure: { org: 'myorg', project: 'myproject' },`},
+];
+
+function renderIntegrations() {
+  document.getElementById('int-grid').innerHTML = INTEGRATIONS.map(i=>`
+    <div class="int-card">
+      <div class="int-header">
+        <div class="int-logo" style="background:${i.bg}22;border:1px solid ${i.bg}44">${i.logo}</div>
+        <div class="int-status ${i.connected?'on':'off'}"></div>
+      </div>
+      <div>
+        <div class="int-name">${esc(i.name)}</div>
+        <div class="int-desc" style="margin-top:4px">${esc(i.desc)}</div>
+      </div>
+      <div class="int-snippet">${esc(i.snippet)}</div>
+      <button class="btn ${i.connected?'btn-ghost':'btn-primary'} btn-sm" onclick="toggleInt(this,'${esc(i.name)}')">
+        ${i.connected?'Disconnect':'Connect'}
+      </button>
+    </div>
+  `).join('');
+}
+
+function toggleInt(btn, name) {
+  const int = INTEGRATIONS.find(x=>x.name===name);
+  if (!int) return;
+  int.connected = !int.connected;
+  const dot = btn.closest('.int-card').querySelector('.int-status');
+  dot.className = `int-status ${int.connected?'on':'off'}`;
+  btn.className = `btn ${int.connected?'btn-ghost':'btn-primary'} btn-sm`;
+  btn.textContent = int.connected ? 'Disconnect' : 'Connect';
+  toast(int.connected ? `${name} connected` : `${name} disconnected`);
+}
+
+/* ═══════════════════════════════════════════
+   SETTINGS
+═══════════════════════════════════════════ */
+function switchSetting(id, el) {
+  document.querySelectorAll('.s-section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.s-nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('s-'+id).classList.add('active');
+  el.classList.add('active');
+}
+
+async function loadApiKeys() {
+  if (!PROJECT_ID) return;
+  try {
+    const { keys } = await apiFetch(`/api/projects/${PROJECT_ID}/keys`);
+    const list = document.getElementById('api-keys-list');
+    if (!keys.length) { list.innerHTML = `<div style="padding:16px 20px;color:var(--text-muted);font-size:13px">No API keys yet.</div>`; return; }
+    list.innerHTML = keys.map(k=>`
+      <div class="s-row">
+        <div>
+          <div class="s-row-label">${esc(k.name)}</div>
+          <div class="s-row-desc">Prefix: <span class="mono">${esc(k.key_prefix)}…</span> · ${k.last_used_at?'Last used '+timeAgo(k.last_used_at):'Never used'} · Created ${timeAgo(k.created_at)}</div>
+        </div>
+        <div class="api-key-row">
+          <div class="api-key-display">${esc(k.key_prefix)}••••••••••••••••••••</div>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="toast('Key revocation not available in UI — use the API', 'error')">Revoke</button>
+        </div>
+      </div>
+    `).join('') + `<div class="s-row" style="border-bottom:none"><div><div class="s-row-label">Create New Key</div></div><button class="btn btn-ghost btn-sm" onclick="createKey()">+ New Key</button></div>`;
+  } catch(e) { console.error(e); }
+}
+
+async function createKey() {
+  const name = prompt('Key name (e.g. "CI Key"):');
+  if (!name) return;
+  try {
+    const res = await fetch(`${API}/api/projects/${PROJECT_ID}/keys`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name})
+    });
+    const { api_key } = await res.json();
+    toast(`New key created: ${api_key.slice(0,30)}… (copy it now!)`);
+    loadApiKeys();
+  } catch { toast('Failed to create key', 'error'); }
+}
+
+async function confirmClearRuns() {
+  if (!confirm('Are you sure? This will permanently delete ALL test runs for this project. This cannot be undone.')) return;
+  try {
+    const { runs } = await apiFetch(`/api/runs?project_id=${PROJECT_ID}&limit=500&offset=0`);
+    let deleted = 0;
+    for (const r of runs) {
+      await fetch(`${API}/api/runs/${r.id}`, { method: 'DELETE' });
+      deleted++;
+    }
+    toast(`Cleared ${deleted} run${deleted !== 1 ? 's' : ''}`);
+    loadDashboard();
+    loadRuns();
+  } catch(e) {
+    toast('Failed to clear runs: ' + (e.message || 'Unknown error'), 'error');
+  }
+}
+
+/* ═══════════════════════════════════════════
+   TOPBAR ACTIONS
+═══════════════════════════════════════════ */
+function refreshCurrentView() {
+  const btn = document.getElementById('refresh-btn');
+  btn.textContent = '↻ Refreshing…'; btn.disabled = true;
+  let p;
+  if (currentView==='dashboard')    p = loadDashboard();
+  else if (currentView==='runs')    p = loadRuns();
+  else if (currentView==='analytics') p = loadAnalytics();
+  else p = Promise.resolve();
+  (p||Promise.resolve()).finally(() => { btn.textContent='↻ Refresh'; btn.disabled=false; });
+}
+
+function showRunModal() {
+  const overlay = document.getElementById('run-overlay');
+  overlay.style.display = 'flex';
+}
+function closeRunModal() {
+  document.getElementById('run-overlay').style.display = 'none';
+}
+
+async function saveProjectSettings() {
+  if (!PROJECT_ID) return;
+  const name    = document.getElementById('s-proj-name').value.trim();
+  const baseUrl = document.getElementById('s-proj-url').value.trim();
+  if (!name) { toast('Project name cannot be empty', 'error'); return; }
+  try {
+    // PATCH /api/projects/:id (we add this endpoint below)
+    const res = await fetch(`${API}/api/projects/${PROJECT_ID}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, base_url: baseUrl || null }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    document.getElementById('sidebar-project-name').textContent = name;
+    toast('Settings saved');
+  } catch(e) {
+    toast(e.message || 'Failed to save', 'error');
+  }
+}
+
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+renderIntegrations();
+boot().then(() => loadRuns());
+</script>
+</body>
+</html>

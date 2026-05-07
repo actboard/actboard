@@ -1,0 +1,52 @@
+{
+  "name": "@actboard/playwright-reporter",
+  "version": "1.0.0",
+  "description": "Playwright reporter that streams test results to ActBoard — the self-hostable test history dashboard",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "prepublishOnly": "tsc"
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "keywords": [
+    "playwright",
+    "reporter",
+    "testing",
+    "dashboard",
+    "actboard",
+    "e2e",
+    "test-history",
+    "flaky-tests"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/actboard/actboard.git",
+    "directory": "reporter"
+  },
+  "homepage": "https://actboard.dev",
+  "bugs": {
+    "url": "https://github.com/actboard/actboard/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.38.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.43.0",
+    "typescript": "^5.4.5"
+  }
+}
