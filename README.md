@@ -31,7 +31,7 @@ Your CI runner
 
 ### Option A — Cloud (zero infra)
 
-1. Sign up at **[actboard.dev](https://actboard.dev)**
+1. Sign up at **[actboard.io](https://actboard.io)**
 2. Get your API key from Settings → API Keys
 3. Skip to **Step 3** below
 
@@ -83,7 +83,7 @@ export default defineConfig({
   reporter: [
     ['list'],
     ['@actboard/playwright-reporter', {
-      serverUrl: 'http://localhost:3141',        // or https://actboard.dev
+      serverUrl: 'http://localhost:3141',        // or https://actboard.io
       apiKey:    process.env.ACTBOARD_API_KEY,
       project:   'e2e-production',              // your project slug
       branch:    process.env.GITHUB_REF_NAME  || 'local',
@@ -254,11 +254,11 @@ PRs welcome. Please open an issue before large changes.
 See [`ACTBOARD_PRODUCT_PLAN.md`](ACTBOARD_PRODUCT_PLAN.md) for the full 3-phase roadmap.
 
 **Phase 1 (current):** Open source core — reporter + self-hostable server + full dashboard  
-**Phase 2:** Cloud service (actboard.dev), Auth0, AWS infrastructure, multi-tenancy, Stripe billing  
+**Phase 2:** Cloud service (actboard.io), Auth0, AWS infrastructure, multi-tenancy, Stripe billing  
 **Phase 3:** GitHub/GitLab PR comments, Slack alerts, enterprise SSO, Kubernetes Helm chart
 
 ---
 
 ## License
 
-MIT © [ActBoard](https://actboard.dev)
+MIT © [ActBoard](https://actboard.io)

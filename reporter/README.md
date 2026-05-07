@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  The official Playwright reporter for <a href="https://actboard.dev"><strong>ActBoard</strong></a> — a self-hostable dashboard that stores your Playwright test history, tracks pass rates, surfaces flaky tests, and connects to your CI pipeline.
+  The official Playwright reporter for <a href="https://actboard.io"><strong>ActBoard</strong></a> — a self-hostable dashboard that stores your Playwright test history, tracks pass rates, surfaces flaky tests, and connects to your CI pipeline.
 </p>
 
 ---
@@ -38,7 +38,7 @@ pnpm add -D @actboard/playwright-reporter
 
 ### 1. Start ActBoard
 
-**Cloud:** Sign up at [actboard.dev](https://actboard.dev) and get an API key.
+**Cloud:** Sign up at [actboard.io](https://actboard.io) and get an API key.
 
 **Self-hosted (Docker):**
 ```bash
@@ -63,7 +63,7 @@ export default defineConfig({
   reporter: [
     ['list'],   // keep the terminal reporter
     ['@actboard/playwright-reporter', {
-      serverUrl: 'http://localhost:3141',       // or https://actboard.dev
+      serverUrl: 'http://localhost:3141',       // or https://actboard.io
       apiKey:    process.env.ACTBOARD_API_KEY,
       project:   'e2e-production',             // must match your project slug
       branch:    process.env.GITHUB_REF_NAME  || 'local',
@@ -108,7 +108,7 @@ The reporter reads these automatically — no code changes needed in CI:
 
 ```bash
 ACTBOARD_API_KEY=act_myproject_abc123          # required
-ACTBOARD_SERVER_URL=https://actboard.dev       # optional, default: localhost:3141
+ACTBOARD_SERVER_URL=https://actboard.io       # optional, default: localhost:3141
 ACTBOARD_PROJECT=e2e-production                # optional, use if project not set in config
 ```
 
@@ -287,4 +287,4 @@ If the server is unreachable, the reporter logs a warning and exits gracefully �
 
 ## License
 
-MIT © [ActBoard](https://actboard.dev)
+MIT © [ActBoard](https://actboard.io)

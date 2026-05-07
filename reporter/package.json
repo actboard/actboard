@@ -1,6 +1,6 @@
 {
   "name": "@actboard/playwright-reporter",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Playwright reporter that streams test results to ActBoard — the self-hostable test history dashboard",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -35,7 +35,7 @@
     "url": "https://github.com/actboard/actboard.git",
     "directory": "reporter"
   },
-  "homepage": "https://actboard.dev",
+  "homepage": "https://actboard.io",
   "bugs": {
     "url": "https://github.com/actboard/actboard/issues"
   },
