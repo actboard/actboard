@@ -1,6 +1,26 @@
 # @actboard/playwright-reporter
 
-> The official Playwright reporter for [ActBoard](https://actboard.dev) — a self-hostable dashboard that stores your Playwright test history, tracks pass rates, surfaces flaky tests, and connects to your CI pipeline.
+<p align="center">
+  <a href="https://www.npmjs.com/package/@actboard/playwright-reporter"><img src="https://img.shields.io/npm/v/@actboard/playwright-reporter?color=crimson&label=npm" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/@actboard/playwright-reporter"><img src="https://img.shields.io/npm/dm/@actboard/playwright-reporter?color=blue" alt="downloads" /></a>
+  <a href="https://www.npmjs.com/package/@playwright/test"><img src="https://img.shields.io/npm/dependency-version/@actboard/playwright-reporter/peer/%40playwright%2Ftest?label=%40playwright%2Ftest" alt="Playwright peer" /></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license" /></a>
+</p>
+
+<p align="center">
+  The official Playwright reporter for <a href="https://actboard.dev"><strong>ActBoard</strong></a> — a self-hostable dashboard that stores your Playwright test history, tracks pass rates, surfaces flaky tests, and connects to your CI pipeline.
+</p>
+
+---
+
+### What you get
+
+- **Full test history** — every run stored, browsable, and searchable
+- **Pass rate trends** — see whether your suite is getting healthier over time
+- **Flaky test detection** — tests that flip between pass/fail are automatically flagged
+- **Branch & commit tracking** — compare runs across branches and deployments
+- **CI-ready** — works with GitHub Actions, GitLab CI, CircleCI, Jenkins, Azure DevOps, and more
+- **Self-hostable** — one Docker command, your data stays on your infra
 
 ---
 
