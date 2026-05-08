@@ -1,6 +1,6 @@
 # actboard/server
 
-The official Docker image for **[ActBoard](https://actboard.io)** — a self-hostable dashboard that stores your Playwright test history, tracks pass rates, surfaces flaky tests, and connects to your CI pipeline.
+Self-hostable Playwright test history server — stores every run, tracks pass-rate trends over time, detects flaky tests, and gives your team a dashboard to analyse CI health across branches and commits.
 
 ## Quick Start
 

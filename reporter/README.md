@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  The official Playwright reporter for <a href="https://actboard.io"><strong>ActBoard</strong></a> — a self-hostable dashboard that stores your Playwright test history, tracks pass rates, surfaces flaky tests, and connects to your CI pipeline.
+  A Playwright reporter that captures full test history, tracks pass-rate trends, and surfaces flaky tests — sending every run to your <a href="https://actboard.io"><strong>ActBoard</strong></a> dashboard for deep analysis.
 </p>
 
 ---

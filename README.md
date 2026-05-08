@@ -249,16 +249,6 @@ PRs welcome. Please open an issue before large changes.
 
 ---
 
-## Roadmap
-
-See [`ACTBOARD_PRODUCT_PLAN.md`](ACTBOARD_PRODUCT_PLAN.md) for the full 3-phase roadmap.
-
-**Phase 1 (current):** Open source core — reporter + self-hostable server + full dashboard  
-**Phase 2:** Cloud service (actboard.io), Auth0, AWS infrastructure, multi-tenancy, Stripe billing  
-**Phase 3:** GitHub/GitLab PR comments, Slack alerts, enterprise SSO, Kubernetes Helm chart
-
----
-
 ## License
 
 MIT © [ActBoard](https://actboard.io)
