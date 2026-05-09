@@ -572,10 +572,31 @@ const PAGE_SIZE  = 25;
 let trendChart = null, donutChart = null, passrateChart = null, durationChart = null, browserChart = null;
 
 /* ═══════════════════════════════════════════
+   CLOUD AUTH — read apiKey + project from URL
+   params once, store in localStorage, then
+   clean the URL so the key isn't visible.
+═══════════════════════════════════════════ */
+(function initCloudAuth() {
+  const params = new URLSearchParams(window.location.search);
+  const keyFromUrl     = params.get('apiKey');
+  const projectFromUrl = params.get('project');
+  if (keyFromUrl)     localStorage.setItem('ab_api_key',      keyFromUrl);
+  if (projectFromUrl) localStorage.setItem('ab_boot_project', projectFromUrl);
+  if (keyFromUrl || projectFromUrl) {
+    history.replaceState({}, '', window.location.pathname);
+  }
+})();
+
+function getApiKey() { return localStorage.getItem('ab_api_key') || ''; }
+
+/* ═══════════════════════════════════════════
    UTILITIES
 ═══════════════════════════════════════════ */
-async function apiFetch(path) {
-  const res = await fetch(API + path);
+async function apiFetch(path, options = {}) {
+  const key = getApiKey();
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  if (key) headers['Authorization'] = `Bearer ${key}`;
+  const res = await fetch(API + path, { ...options, headers });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -735,7 +756,9 @@ async function boot() {
       showSetupModal();
       return;
     }
-    const p = projects[0];
+    // Prefer the project that was linked from the onboarding page
+    const bootProjectId = localStorage.getItem('ab_boot_project');
+    const p = (bootProjectId && projects.find(x => x.id === bootProjectId)) || projects[0];
     PROJECT_ID   = p.id;
     PROJECT_SLUG = p.slug;
     document.getElementById('sidebar-project-name').textContent = p.name;
@@ -787,13 +810,10 @@ async function submitSetup() {
   const btn = document.getElementById('setup-submit-btn');
   btn.disabled = true; btn.textContent = 'Creating…';
   try {
-    const res = await fetch(`${API}/api/projects`, {
+    const { project, api_key } = await apiFetch(`/api/projects`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, base_url: document.getElementById('setup-url').value.trim() || null }),
     });
-    if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Failed'); }
-    const { project, api_key } = await res.json();
     PROJECT_ID = project.id; PROJECT_SLUG = project.slug;
     // Add to local list and refresh dropdown
     if (!ALL_PROJECTS.find(p => p.id === project.id)) ALL_PROJECTS.push(project);
@@ -1253,10 +1273,9 @@ async function createKey() {
   const name = prompt('Key name (e.g. "CI Key"):');
   if (!name) return;
   try {
-    const res = await fetch(`${API}/api/projects/${PROJECT_ID}/keys`, {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name})
+    const { api_key } = await apiFetch(`/api/projects/${PROJECT_ID}/keys`, {
+      method:'POST', body:JSON.stringify({name})
     });
-    const { api_key } = await res.json();
     toast(`New key created: ${api_key.slice(0,30)}… (copy it now!)`);
     loadApiKeys();
   } catch { toast('Failed to create key', 'error'); }
@@ -1268,7 +1287,7 @@ async function confirmClearRuns() {
     const { runs } = await apiFetch(`/api/runs?project_id=${PROJECT_ID}&limit=500&offset=0`);
     let deleted = 0;
     for (const r of runs) {
-      await fetch(`${API}/api/runs/${r.id}`, { method: 'DELETE' });
+      await apiFetch(`/api/runs/${r.id}`, { method: 'DELETE' });
       deleted++;
     }
     toast(`Cleared ${deleted} run${deleted !== 1 ? 's' : ''}`);
@@ -1308,12 +1327,11 @@ async function saveProjectSettings() {
   if (!name) { toast('Project name cannot be empty', 'error'); return; }
   try {
     // PATCH /api/projects/:id (we add this endpoint below)
-    const res = await fetch(`${API}/api/projects/${PROJECT_ID}`, {
+    const { project: updated } = await apiFetch(`/api/projects/${PROJECT_ID}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, base_url: baseUrl || null }),
     });
-    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    if (updated) { PROJECT_SLUG = updated.slug; updateReporterSnippet(updated.slug); }
     document.getElementById('sidebar-project-name').textContent = name;
     toast('Settings saved');
   } catch(e) {

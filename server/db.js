@@ -264,8 +264,9 @@ export const Tests = {
     run();
   },
 
-  forRun(run_id) {
-    return db.prepare('SELECT * FROM tests WHERE run_id = ? ORDER BY suite_id, rowid').all(run_id);
+  forRun(run_id, limit = 5000, offset = 0) {
+    const limitNum = Math.min(limit, 5000);
+    return db.prepare('SELECT * FROM tests WHERE run_id = ? ORDER BY suite_id, rowid LIMIT ? OFFSET ?').all(run_id, limitNum, offset);
   },
 
   forSuite(suite_id) {

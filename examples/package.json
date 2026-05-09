@@ -8,7 +8,8 @@
     "test:ui": "playwright test --ui"
   },
   "devDependencies": {
-    "@actboard/playwright-reporter": "^1.0.0",
-    "@playwright/test": "^1.44.0"
+    "@actboard/playwright-reporter": "^1.0.5",
+    "@playwright/test": "^1.59.1",
+    "@types/node": "^25.6.2"
   }
 }

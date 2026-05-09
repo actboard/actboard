@@ -36,10 +36,13 @@ npm-debug.log*
 # Docker
 .dockerignore
 
-# Publish / push scripts (contain credentials — never commit)
+# Publish / push scripts (no credentials — still better to not commit)
 publish.sh
 publish-docker.sh
 push-github.sh
+push-actboard-web.sh
+setup-actboard-web.sh
+setup-actboard-web-src/
 .npmrc
 
 # Examples — generated artifacts

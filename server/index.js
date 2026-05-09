@@ -10,6 +10,7 @@
 
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -24,6 +25,7 @@ const PORT = process.env.PORT || 3141;
 const HOST = process.env.HOST || '0.0.0.0';
 
 // ── Middleware ─────────────────────────────────────────
+app.use(compression());
 app.use(cors({
   origin: process.env.CORS_ORIGIN || '*',
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -31,6 +33,28 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '50mb' }));
+
+// Simple rate limiter per API key
+const requestLog = new Map();
+app.use((req, res, next) => {
+  if (req.projectId || req.path.startsWith('/api/runs')) {
+    const key = req.projectId || req.ip;
+    const now = Date.now();
+    const requests = requestLog.get(key) || [];
+    const recentRequests = requests.filter(t => now - t < 60000); // 1 minute window
+    
+    if (recentRequests.length > 1000) { // Allow 1000 req/min per key
+      return res.status(429).json({ error: 'Rate limit exceeded' });
+    }
+    
+    recentRequests.push(now);
+    requestLog.set(key, recentRequests);
+    
+    // Cleanup old entries
+    if (requestLog.size > 10000) requestLog.clear();
+  }
+  next();
+});
 
 // ── Static dashboard UI ────────────────────────────────
 app.use(express.static(join(__dirname, 'public')));
@@ -40,7 +64,14 @@ app.use('/api/runs',      runsRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/projects',  projectsRouter);
 
-// Health / version check
+
+
+// Health / version check (for AWS ALB and ECS)
+app.get('/health', (_req, res) => {
+  console.log('[Health] /health endpoint hit');
+  res.status(200).json({ status: 'ok' });
+});
+
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', version: '1.0.0', ts: new Date().toISOString() });
 });

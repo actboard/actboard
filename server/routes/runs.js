@@ -125,8 +125,12 @@ router.get('/:id', (req, res) => {
   const run = Runs.findById(req.params.id);
   if (!run) return res.status(404).json({ error: 'Run not found' });
 
+  const { limit = 1000, offset = 0 } = req.query;
+  const limitNum = Math.min(Number(limit) || 1000, 5000);
+  const offsetNum = Number(offset) || 0;
+
   const suites = Suites.forRun(run.id);
-  const tests  = Tests.forRun(run.id);
+  const tests  = Tests.forRun(run.id, limitNum, offsetNum);
 
   // Group tests by suite
   const testsBySuite = {};
@@ -148,6 +152,7 @@ router.get('/:id', (req, res) => {
       metadata: safeJSON(run.metadata, {}),
     },
     suites: suitesWithTests,
+    pagination: { limit: limitNum, offset: offsetNum },
   });
 });
 
