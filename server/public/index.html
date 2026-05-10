@@ -466,6 +466,13 @@ select.fsel:focus{border-color:var(--accent)}
             <div class="s-panel">
               <div class="s-panel-header"><div class="s-panel-title">API Keys</div><div class="s-panel-sub">Use in your CI to publish test results</div></div>
               <div id="api-keys-list"><div style="text-align:center;padding:20px"><span class="loading-spinner"></span></div></div>
+              <div id="new-api-key-result" style="display:none;padding:14px 20px;border-top:1px solid var(--border);background:var(--bg-base)">
+                <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">New API Key — copy it now, it won't be shown again</div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <code id="new-api-key-text" class="mono" style="flex:1;font-size:12px;color:var(--accent-light);word-break:break-all"></code>
+                  <button class="btn btn-ghost btn-sm" onclick="copyNewApiKey()">Copy</button>
+                </div>
+              </div>
             </div>
             <div class="s-panel">
               <div class="s-panel-header"><div class="s-panel-title">Reporter Snippet</div><div class="s-panel-sub">Add to playwright.config.ts</div></div>
@@ -510,7 +517,7 @@ select.fsel:focus{border-color:var(--accent)}
   <div style="background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:16px;padding:36px 40px;width:480px;max-width:90vw">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
       <div class="logo-icon" style="width:36px;height:36px;font-size:16px">▶</div>
-      <div><div style="font-size:18px;font-weight:700">Welcome to ActBoard</div><div style="font-size:13px;color:var(--text-secondary);margin-top:2px">Create your first project to get started</div></div>
+      <div><div style="font-size:18px;font-weight:700">Welcome to ActBoard</div><div style="font-size:13px;color:var(--text-secondary);margin-top:2px">Create a project to get started</div></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:14px">
       <div>
@@ -530,6 +537,7 @@ select.fsel:focus{border-color:var(--accent)}
       </div>
     </div>
     <div style="display:flex;gap:10px;margin-top:24px">
+      <button id="setup-cancel-btn" class="btn btn-ghost" style="display:none" onclick="closeSetup()">Cancel</button>
       <button id="setup-submit-btn" class="btn btn-primary" style="flex:1" onclick="submitSetup()">Create Project & Get API Key</button>
       <button id="setup-done-btn" class="btn btn-ghost" style="display:none" onclick="closeSetup()">Open Dashboard →</button>
     </div>
@@ -645,6 +653,32 @@ function toast(msg, type='success') {
   setTimeout(() => el.remove(), 3500);
 }
 
+async function copyTextToClipboard(text) {
+  if (!text) return false;
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {}
+
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 /* ═══════════════════════════════════════════
    NAVIGATION
 ═══════════════════════════════════════════ */
@@ -654,6 +688,7 @@ function navigate(view, runId) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   currentView = view;
+  localStorage.setItem('ab_current_view', view);
   document.getElementById('view-'+view).classList.add('active');
   const navEl = document.querySelector(`.nav-item[data-view="${view}"]`);
   if (navEl) navEl.classList.add('active');
@@ -666,6 +701,7 @@ function navigate(view, runId) {
   }
 
   if (view==='analytics' && !passrateChart) loadAnalytics();
+  if (view==='runs') loadRuns();
   if (view==='settings') loadApiKeys();
 }
 
@@ -713,6 +749,7 @@ async function switchProject(id, e) {
   if (!p) return;
   PROJECT_ID   = p.id;
   PROJECT_SLUG = p.slug;
+  localStorage.setItem('ab_current_project', p.id);
   document.getElementById('sidebar-project-name').textContent = p.name;
   document.getElementById('s-proj-name').value = p.name;
   document.getElementById('s-proj-url').value  = p.base_url || '';
@@ -724,6 +761,12 @@ async function switchProject(id, e) {
   if (durationChart)  { durationChart.destroy();  durationChart  = null; }
   if (donutChart)     { donutChart.destroy();     donutChart     = null; }
   if (browserChart)   { browserChart.destroy();   browserChart   = null; }
+  // Reset test runs view state: pagination, filters, and search
+  runsPage = 0;
+  document.getElementById('filter-status').value = '';
+  document.getElementById('filter-branch').value = '';
+  document.getElementById('filter-browser').value = '';
+  document.getElementById('search-runs').value = '';
   navigate('dashboard');
   await Promise.all([loadDashboard(), loadBranchFilter()]);
   toast(`Switched to "${p.name}"`);
@@ -740,6 +783,7 @@ function openNewProjectModal(e) {
   btn.style.display = 'inline-flex';
   btn.disabled = false;
   btn.textContent = 'Create Project & Get API Key';
+  document.getElementById('setup-cancel-btn').style.display = 'inline-flex';
   document.getElementById('setup-done-btn').style.display = 'none';
   document.getElementById('setup-overlay').style.display = 'flex';
   setTimeout(() => document.getElementById('setup-name').focus(), 50);
@@ -756,9 +800,10 @@ async function boot() {
       showSetupModal();
       return;
     }
-    // Prefer the project that was linked from the onboarding page
+    // Prefer: (1) current/last selected project, (2) project linked from onboarding, (3) first project
+    const lastProjectId = localStorage.getItem('ab_current_project');
     const bootProjectId = localStorage.getItem('ab_boot_project');
-    const p = (bootProjectId && projects.find(x => x.id === bootProjectId)) || projects[0];
+    const p = (lastProjectId && projects.find(x => x.id === lastProjectId)) || (bootProjectId && projects.find(x => x.id === bootProjectId)) || projects[0];
     PROJECT_ID   = p.id;
     PROJECT_SLUG = p.slug;
     document.getElementById('sidebar-project-name').textContent = p.name;
@@ -767,6 +812,9 @@ async function boot() {
     updateReporterSnippet(p.slug);
     renderProjectDropdown();
     await Promise.all([loadDashboard(), loadBranchFilter()]);
+    // Restore the last viewed page (or default to dashboard)
+    const lastView = localStorage.getItem('ab_current_view') || 'dashboard';
+    navigate(lastView);
   } catch(e) {
     toast('Could not connect to ActBoard server', 'error');
     console.error(e);
@@ -798,6 +846,7 @@ function showSetupModal() {
   btn.style.display = 'inline-flex';
   btn.disabled = false;
   btn.textContent = 'Create Project & Get API Key';
+  document.getElementById('setup-cancel-btn').style.display = 'none';
   document.getElementById('setup-done-btn').style.display = 'none';
   const overlay = document.getElementById('setup-overlay');
   overlay.style.display = 'flex';
@@ -825,6 +874,7 @@ async function submitSetup() {
     // Show the key
     document.getElementById('setup-key-text').textContent = api_key;
     document.getElementById('setup-key-result').style.display = 'block';
+    document.getElementById('setup-cancel-btn').style.display = 'none';
     btn.style.display = 'none';
     document.getElementById('setup-done-btn').style.display = 'inline-flex';
     toast(`Project "${project.name}" created!`);
@@ -836,8 +886,11 @@ async function submitSetup() {
 }
 
 function copySetupKey() {
-  const key = document.getElementById('setup-key-text').textContent;
-  navigator.clipboard.writeText(key).then(() => toast('API key copied!'));
+  const key = document.getElementById('setup-key-text').textContent || '';
+  copyTextToClipboard(key).then(ok => {
+    if (ok) toast('API key copied!');
+    else toast('Copy failed. Please copy manually.', 'error');
+  });
 }
 
 function closeSetup() {
@@ -861,9 +914,9 @@ async function loadDashboard() {
     renderDonutChart(summary);
     renderDashRuns(runs);
 
-    const failedCount = summary.failed_runs || 0;
+    const totalCount = summary.total_runs || 0;
     const badge = document.getElementById('failed-badge');
-    if (failedCount > 0) { badge.textContent = failedCount; badge.style.display='inline'; }
+    if (totalCount > 0) { badge.textContent = totalCount; badge.style.display='inline'; }
 
     document.getElementById('dash-subtitle').textContent =
       `${summary.total_runs} runs in last 30 days · ${PROJECT_SLUG} · pass rate ${summary.pass_rate||0}%`;
@@ -1276,9 +1329,20 @@ async function createKey() {
     const { api_key } = await apiFetch(`/api/projects/${PROJECT_ID}/keys`, {
       method:'POST', body:JSON.stringify({name})
     });
-    toast(`New key created: ${api_key.slice(0,30)}… (copy it now!)`);
-    loadApiKeys();
+    await loadApiKeys();
+    document.getElementById('new-api-key-text').textContent = api_key;
+    document.getElementById('new-api-key-result').style.display = 'block';
+    toast('New key created. Copy it now.');
   } catch { toast('Failed to create key', 'error'); }
+}
+
+function copyNewApiKey() {
+  const key = document.getElementById('new-api-key-text').textContent || '';
+  if (!key) return;
+  copyTextToClipboard(key).then(ok => {
+    if (ok) toast('API key copied!');
+    else toast('Copy failed. Please copy manually.', 'error');
+  });
 }
 
 async function confirmClearRuns() {
@@ -1343,7 +1407,7 @@ async function saveProjectSettings() {
    INIT
 ═══════════════════════════════════════════ */
 renderIntegrations();
-boot().then(() => loadRuns());
+boot();
 </script>
 </body>
 </html>
